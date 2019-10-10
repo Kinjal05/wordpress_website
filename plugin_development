@@ -1,0 +1,276 @@
+<?php
+/**
+ * @package WP Book
+ * @version 1.0
+ */
+/*
+Plugin Name: WP Book
+Plugin URI: 
+Description: This is my test plugin
+Author: Kinjal Rathod
+Version: 1.0
+Author URI: 
+Licence: GPLv2 or later
+Text-domain: WP Book
+Domain Path: /languages                  // .mo files are located in the languages folder within plugin
+*/
+the_terms( $post->ID, 'BookCategory', 'Book Category: ', ', ', ' ' ); 
+//add_meta_box( 'my-meta-box-id', 'My First Meta Box', 'cd_meta_box_cb', 'post', 'normal', 'high' );
+if( !defined( 'ABSPATH' ) ) {
+	die;
+}
+require_once plugin_dir_path( __FILE__ ) . 'inc/activate.php';
+register_activation_hook( __FILE__, array('TestActivate','activate') );
+require_once plugin_dir_path( __FILE__ ) . 'inc/deactivate.php';
+register_deactivation_hook( __FILE__, array('TestDeactivate','deactivate') );
+
+add_action( 'add_meta_boxes', 'cd_meta_box_add' );
+function cd_meta_box_add()
+{
+    add_meta_box( 'my-meta-box-id', 'My First Meta Box', 'cd_meta_box_cb', 'post', 'normal', 'high' );
+}
+
+function cd_meta_box_cb($post)
+{
+    echo 'What you put here, show\'s up in the meta box';  
+	?>
+	<br>
+    <label for="my_meta_box_text"><br>Author Name</label>
+    <input type="text" name="my_meta_box_text" id="my_meta_box_text" /><br>
+        <label for="my_meta_box_text"><br>Publisher</label>
+		<input type="text" name="my_meta_box_text" id="my_meta_box_check" />
+   
+	<?php    
+	$values = get_post_custom( $post->ID );
+	$text = isset( $values['my_meta_box_text'] ) ? esc_attr( $values['my_meta_box_text'][0] ) : ”;
+	$selected = isset( $values['my_meta_box_select'] ) ? esc_attr( $values['my_meta_box_select'][0] ) : ”;
+	$check = isset( $values['my_meta_box_check'] ) ? esc_attr( $values['my_meta_box_check'][0] ) : ”;
+    ?>
+      	<p>
+        <label for="my_meta_box_select">Year</label>
+        <select name="my_meta_box_select" id="my_meta_box_select">
+            <option value="2018" <?php selected( $selected, '2018' ); ?>>2018</option>
+            <option value="2019" <?php selected( $selected, '2019' ); ?>>2019</option>
+        </select>
+    </p>
+	
+    <?php  
+}
+add_action( 'save_post', 'cd_meta_box_save' );
+function cd_meta_box_save( $post_id )
+{
+    // Bail if we're doing an auto save
+    if( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
+     
+    // if our nonce isn't there, or we can't verify it, bail
+    if( !isset( $_POST['meta_box_nonce'] ) || !wp_verify_nonce( $_POST['meta_box_nonce'], 'my_meta_box_nonce' ) ) return;
+     
+    // if our current user can't edit this post, bail
+    if( !current_user_can( 'edit_post' ) ) return;
+	// now we can actually save the data
+    $allowed = array( 
+        'a' => array( // on allow a tags
+            'href' => array() // and those anchors can only have href attribute
+        )
+    );
+     
+    // Make sure your data is set before trying to save it
+    if( isset( $_POST['my_meta_box_text'] ) )
+        update_post_meta( $post_id, 'my_meta_box_text', wp_kses( $_POST['my_meta_box_text'], $allowed ) );
+         
+    if( isset( $_POST['my_meta_box_select'] ) )
+        update_post_meta( $post_id, 'my_meta_box_select', esc_attr( $_POST['my_meta_box_select'] ) );
+         
+    // This is purely my personal preference for saving check-boxes
+    $chk = isset( $_POST['my_meta_box_check'] ) && $_POST['my_meta_box_select'] ? 'on' : 'off';
+    update_post_meta( $post_id, 'my_meta_box_check', $chk );
+}
+
+add_action( 'init', 'lc_custom_post_Book' );
+ 
+// The custom function to register a Book post type
+function lc_custom_post_Book() {
+ 
+  // Set the labels, this variable is used in the $args array
+  $labels = array(
+    'name'               => __( 'Book' ),
+    'singular_name'      => __( 'Book' ),
+    'add_new'            => __( 'Add New Book' ),
+    'add_new_item'       => __( 'Add New Book' ),
+    'edit_item'          => __( 'Edit Book' ),
+    'new_item'           => __( 'New Book' ),
+    'all_items'          => __( 'All Books' ),
+    'view_item'          => __( 'View Book' ),
+    'search_items'       => __( 'Search Books' ),
+    'featured_image'     => 'Poster',
+    'set_featured_image' => 'Add Poster'
+  );
+ 
+  // The arguments for our post type, to be entered as parameter 2 of register_post_type()
+  $args = array(
+    'labels'            => $labels,
+    'description'       => 'Holds our Books and Book specific data',
+    'public'            => true,
+    'menu_position'     => 5,
+    'supports'          => array( 'title', 'editor', 'thumbnail', 'excerpt', 'comments', 'custom-fields' ),
+    'has_archive'       => true,
+    'show_in_admin_bar' => true,
+    'show_in_nav_menus' => true,
+    'has_archive'       => true,
+    'query_var'         => 'film'
+  );
+ 
+  register_post_type( 'Book', $args);
+}
+ add_action( 'init', 'create_BookCategory_hierarchical_taxonomy', 0 );
+ 
+//create a custom taxonomy name it Book Category for your posts
+ 
+function create_BookCategory_hierarchical_taxonomy() {
+
+ 
+  $labels = array(
+    'name' => _x( 'Book Category', 'taxonomy general name' ),
+    'singular_name' => _x( 'Book Category', 'taxonomy singular name' ),
+    'search_items' =>  __( 'Search Book Category' ),
+    'all_items' => __( 'All Book Category' ),
+    'parent_item' => __( 'Parent Book Category' ),
+    'parent_item_colon' => __( 'Parent Book Category:' ),
+    'edit_item' => __( 'Edit Book Category' ), 
+    'update_item' => __( 'Update Book Category' ),
+    'add_new_item' => __( 'Add New Book Category' ),
+    'new_item_name' => __( 'New Book Category Name' ),
+    'menu_name' => __( 'Book Category' ),
+  );    
+ 
+// Now register the taxonomy
+ 
+  register_taxonomy('BookCategory',array('post'), array(
+    'hierarchical' => true,
+    'labels' => $labels,
+    'show_ui' => true,
+    'show_admin_column' => true,
+    'query_var' => true,
+    'rewrite' => array( 'slug' => 'BookCategory' ),
+  ));
+ 
+}
+
+add_action( 'init', 'create_topics_nonhierarchical_taxonomy', 0 );
+ 
+function create_topics_nonhierarchical_taxonomy() {
+ 
+// Labels part for the GUI
+ 
+  $labels = array(
+    'name' => _x( 'Book Tag', 'taxonomy general name' ),
+    'singular_name' => _x( 'Topic', 'taxonomy singular name' ),
+    'search_items' =>  __( 'Search Topics' ),
+    'popular_items' => __( 'Popular Topics' ),
+    'all_items' => __( 'All Topics' ),
+    'parent_item' => null,
+    'parent_item_colon' => null,
+    'edit_item' => __( 'Edit Topic' ), 
+    'update_item' => __( 'Update Topic' ),
+    'add_new_item' => __( 'Add New Topic' ),
+    'new_item_name' => __( 'New Topic Name' ),
+    'separate_items_with_commas' => __( 'Separate topics with commas' ),
+    'add_or_remove_items' => __( 'Add or remove topics' ),
+    'choose_from_most_used' => __( 'Choose from the most used topics' ),
+    'menu_name' => __( 'Book Tag' ),
+  ); 
+ 
+// Now register the non-hierarchical taxonomy like tag
+ 
+  register_taxonomy('topics','post',array(
+    'hierarchical' => false,
+    'labels' => $labels,
+    'show_ui' => true,
+    'show_admin_column' => true,
+    'update_count_callback' => '_update_post_term_count',
+    'query_var' => true,
+    'rewrite' => array( 'slug' => 'topic' ),
+  ));
+}
+
+add_action('admin_menu' , 'tradmin_page_settings');
+function tradmin_page_settings() {
+add_submenu_page('edit.php?post_type=book','Custom Post Type Admin','Settings','edit_posts',basename(__FILE__),'myplugin_options_page');
+}
+function myplugin_options_page()
+{
+?>
+  <div>
+  <?php screen_icon(); ?>
+  <h2>Book Setting</h2>
+  <form method="post" action="options.php">
+  <?php settings_fields( 'myplugin_options_group' ); ?>
+  <table>
+  <tr valign="top">
+  <p>
+        <label for="my_meta_box_select">Change Currency</label>
+        <select name="my_meta_box_select" id="my_meta_box_select">
+            <option value="<?php echo get_option('myplugin_option_name'); ?>" <?php selected( $selected, '2018' ); ?>>INR</option>
+            <option value="<?php echo get_option('myplugin_option_name'); ?>" <?php selected( $selected, '2019' ); ?>>Dollar</option>
+        </select>
+    </p>
+  </tr>
+  </table>
+  <?php  submit_button(); ?>
+  </form>
+  </div>
+<?php
+} 
+add_action( 'pre_get_posts',  'set_posts_per_page'  );
+function set_posts_per_page( $query ) {
+
+  global $wp_the_query;
+
+  if ( ( ! is_admin() ) && ( $query === $wp_the_query ) && ( $query->is_search() ) ) {
+    $query->set( 'posts_per_page', 3 );
+  }
+  elseif ( ( ! is_admin() ) && ( $query === $wp_the_query ) && ( $query->is_archive() ) ) {
+    $query->set( 'posts_per_page', 5 );
+  }
+  return $query;
+}
+add_action( 'widgets_init', 'category_sidebars' );
+function category_sidebars() {
+	$categories = get_categories( array( 'hide_empty'=> 0 ) );
+
+	foreach ( $categories as $category ) {
+		if ( 0 == $category->parent )
+			register_sidebar( array(
+				'name' => $category->BookCategory,
+				'id' => $category->category_nicename . '-sidebar',
+				'description' => 'This is the ' . $category->BookCategory . ' widgetized area',
+				'before_widget' => '<aside id="%1$s" class="widget %2$s">',
+				'after_widget' => '</aside>',
+				'before_title' => '<h3 class="widget-title">',
+				'after_title' => '</h3>',
+			) );
+	}
+}
+add_action('wp_dashboard_setup', 'my_custom_dashboard_widgets');
+  
+function my_custom_dashboard_widgets() {
+global $wp_meta_boxes;
+ 
+wp_add_dashboard_widget('custom_help_widget', 'Custom Widget', 'custom_dashboard_help');
+}
+ 
+function custom_dashboard_help() {
+$content = '<table><thead><tr><th>Title</th><th>Author</th><th>Date</th></thead></tr>';
+    $args = array('numberposts'=>4, 'orderby'=>'post_date');
+    $posts = get_posts($args);
+    foreach($posts as $post):setup_postdata($post);
+        $content .= '<tr>
+            <td>'.$post->post_title.'</td>
+            <td>'.get_the_author($post->post_author).'</td>
+            <td>'.date('d/m/Y', strtotime($post->post_date_gmt)).'</td>
+        </tr>';
+    endforeach;
+    $content .= '</table>';
+    echo $content;
+}
+
